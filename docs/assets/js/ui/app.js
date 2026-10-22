@@ -164,18 +164,29 @@ function renderDRE() {
 }
 
 /* ---------- análise marginal ---------- */
-function parSel() { if (!R.marginal) return null; return R.marginal.pares.find(p => `${p.defensor}|${p.desafiante}` === ui.parSel) || R.marginal.pares[0]; }
+function parPadrao() {   // par entre os dois melhores projetos por VPL: a comparação que costuma decidir
+  const top = [...R.ranking].sort((a, b) => b.vpl - a.vpl).slice(0, 2).map(l => l.nome);
+  return R.marginal.pares.find(p => top.includes(p.defensor) && top.includes(p.desafiante)) || R.marginal.pares[0];
+}
+function parSel() { if (!R.marginal) return null; return R.marginal.pares.find(p => `${p.defensor}|${p.desafiante}` === ui.parSel) || parPadrao(); }
 function renderMarginal() {
   const t = tokens(); const elM = $('ch-matriz'), elP = $('ch-par'), elPP = $('ch-par-perfil'); const host = $('tab-pares');
-  if (!R.marginal) { [elM, elP, elPP].forEach(dispor); host.innerHTML = '<div class="empty">A análise marginal precisa de pelo menos dois projetos.</div>'; $('nota-campeao').textContent = ''; $('par-titulo').textContent = 'Par selecionado'; $('nota-par').textContent = ''; return; }
+  const seletor = $('par-seletor');
+  if (!R.marginal) { [elM, elP, elPP].forEach(dispor); host.innerHTML = '<div class="empty">A análise marginal precisa de pelo menos dois projetos.</div>'; $('nota-campeao').textContent = ''; $('par-titulo').textContent = 'Par selecionado'; $('nota-par').textContent = ''; seletor.innerHTML = ''; return; }
   const am = R.marginal;
-  const c = chart(elM, optMatriz(am, t)); c.off('click'); c.on('click', ev => { if (ev.data?.par) { ui.parSel = `${ev.data.par.defensor}|${ev.data.par.desafiante}`; renderPar(); renderPares(); } });
-  renderPares(); renderPar();
+  const selecionar = chave => { ui.parSel = chave; renderPar(); renderPares(); renderSeletor(); };
+  const c = chart(elM, optMatriz(am, t)); c.off('click'); c.on('click', ev => { if (ev.data?.par) selecionar(`${ev.data.par.defensor}|${ev.data.par.desafiante}`); });
+  function renderSeletor() {
+    const sel = parSel();
+    seletor.innerHTML = am.pares.map(p => `<button type="button" data-par="${p.defensor}|${p.desafiante}" class="${p === sel ? 'active' : ''}" title="VPL marginal ${fmt.moeda(p.vplMarginal)} → ${p.preferido}">${esc(p.desafiante)} × ${esc(p.defensor)}</button>`).join('');
+    seletor.querySelectorAll('button').forEach(b => b.onclick = () => selecionar(b.dataset.par));
+  }
+  renderSeletor(); renderPares(); renderPar();
   $('nota-campeao').innerHTML = `<b>Seleção incremental:</b> ${R.campeao.trilha.map(s => `${s.defensor === '—' ? '' : s.defensor + ' × '}${s.desafiante} → <b>${s.vence}</b>`).join(' · ')}. Campeão entre projetos excludentes: <b>${esc(R.campeao.campeao)}</b>.`;
   function renderPares() {
     const sel = parSel();
     host.innerHTML = `<table class="data"><thead><tr><th>Defensor</th><th>Desafiante</th><th>Horizonte</th><th>Invest. marginal</th><th>VPL marginal</th><th>TIR(s) marginal</th><th>RAU marginal</th><th>Preferido</th></tr></thead><tbody>${am.pares.map(p => `<tr class="clickable ${p === sel ? 'sel' : ''}" data-par="${p.defensor}|${p.desafiante}"><td>${esc(p.defensor)}</td><td>${esc(p.desafiante)}</td><td>${p.horizonte} anos</td><td>${fmt.moeda(p.investimentoMarginal)}</td><td class="${p.vplMarginal < 0 ? 'neg' : ''}">${fmt.moeda(p.vplMarginal)}</td><td>${p.mesmoInvestimento ? '— (mesmo investimento)' : (p.tirs.length ? p.tirs.map(r => fmt.pct(r)).join(' e ') + (p.tirs.length > 1 ? ' *' : '') : 'nenhuma')}</td><td class="${p.rauMarginal < 0 ? 'neg' : ''}">${fmt.moeda(p.rauMarginal)}</td><td><span class="pill ${p.preferido === p.desafiante ? 'good' : ''}">${esc(p.preferido)}</span></td></tr>`).join('')}</tbody></table>`;
-    host.querySelectorAll('tr[data-par]').forEach(tr => tr.onclick = () => { ui.parSel = tr.dataset.par; renderPar(); renderPares(); });
+    host.querySelectorAll('tr[data-par]').forEach(tr => tr.onclick = () => selecionar(tr.dataset.par));
   }
   function renderPar() {
     const p = parSel(); if (!p) return;
