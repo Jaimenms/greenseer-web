@@ -172,7 +172,7 @@ function parSel() { if (!R.marginal) return null; return R.marginal.pares.find(p
 function renderMarginal() {
   const t = tokens(); const elM = $('ch-matriz'), elP = $('ch-par'), elPP = $('ch-par-perfil'); const host = $('tab-pares');
   const seletor = $('par-seletor');
-  if (!R.marginal) { [elM, elP, elPP].forEach(dispor); host.innerHTML = '<div class="empty">A análise marginal precisa de pelo menos dois projetos.</div>'; $('nota-campeao').textContent = ''; $('par-titulo').textContent = 'Par selecionado'; $('nota-par').textContent = ''; seletor.innerHTML = ''; return; }
+  if (!R.marginal) { [elM, elP, elPP].forEach(dispor); host.innerHTML = '<div class="empty">A análise marginal precisa de pelo menos dois projetos.</div>'; $('nota-campeao').textContent = ''; $('par-titulo').textContent = 'Par selecionado'; $('par-sub').textContent = 'A análise marginal precisa de pelo menos dois projetos.'; $('nota-par').textContent = ''; seletor.innerHTML = ''; return; }
   const am = R.marginal;
   const selecionar = chave => { ui.parSel = chave; renderPar(); renderPares(); renderSeletor(); };
   const c = chart(elM, optMatriz(am, t)); c.off('click'); c.on('click', ev => { if (ev.data?.par) selecionar(`${ev.data.par.defensor}|${ev.data.par.desafiante}`); });
@@ -197,7 +197,8 @@ function renderMarginal() {
     chart(elP, optDiagrama([painel(xa, ia, p.ciclosA), painel(xb, ib, p.ciclosB), marg], t, { altura: elP.clientHeight }));
     const max = Math.min(1.0, Math.max(0.3, ...p.tirs.filter(r => r < 1).map(r => r * 1.3)));
     chart(elPP, optPerfil([{ nome: `${p.desafiante} − ${p.defensor}`, fluxo: p.fluxo }], R.g.tma, [t.ink2], t, { max, fisher: false }));
-    $('par-titulo').textContent = `${p.desafiante} (desafiante) × ${p.defensor} (defensor) — horizonte de ${p.horizonte} anos`;
+    $('par-titulo').textContent = `Par selecionado: ${p.desafiante} × ${p.defensor}`;
+    $('par-sub').textContent = `${p.desafiante} é o desafiante (maior investimento) e ${p.defensor} o defensor · horizonte comum de ${p.horizonte} anos${p.ciclosA > 1 || p.ciclosB > 1 ? ' · nos anos de reinvestimento aparecem a última entrada do ciclo e o novo investimento' : ''} · fluxo marginal = ${p.desafiante} − ${p.defensor}`;
     const sinais = p.fluxo.reduce((s, v, i, a) => s + (i > 0 && Math.sign(v) * Math.sign(a[i - 1]) < 0 ? 1 : 0), 0);
     $('nota-par').innerHTML = `Investimento marginal ${fmt.moeda(p.investimentoMarginal)} · VPL marginal à TMA <b class="${p.vplMarginal < 0 ? 'neg' : ''}">${fmt.moeda(p.vplMarginal)}</b> · RAU marginal ${fmt.moeda(p.rauMarginal)} · o fluxo marginal muda de sinal ${sinais} vez(es)` +
       (p.tirs.length > 1 ? ` e tem ${p.tirs.length} TIR (${p.tirs.map(r => fmt.pct(r)).join(', ')}): "TIR marginal > TMA" deixa de ser critério; vale o sinal do VPL marginal à TMA.` : (p.mesmoInvestimento ? '; sem investimento marginal, compare os VPL diretamente.' : '.')) + ` <b>Preferido: ${esc(p.preferido)}.</b>`;
