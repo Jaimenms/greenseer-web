@@ -1,0 +1,12 @@
+{
+  "name": "greenseer-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Comparação de projetos de investimento no navegador (GitHub Pages): fluxo de caixa, VPL/TIR/TIRM/RAU, análise marginal e carteiras.",
+  "scripts": {
+    "test": "node --test",
+    "serve": "python3 -m http.server -d docs 8000"
+  },
+  "license": "MIT"
+}

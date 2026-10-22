@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>greenseer — Metodologia</title>
+  <meta name="description" content="Como a ferramenta monta o fluxo de caixa e calcula VPL, TIR, TIRM, payback, IBC, RAU, análise marginal, taxa de Fisher e carteiras.">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<header class="topbar" id="topbar"></header>
+<section class="block"><div class="container prose">
+  <div class="section-head"><span class="eyebrow">Metodologia</span><h2>Como os números são calculados</h2><p>A ferramenta segue o roteiro clássico de análise de investimentos: das premissas ao fluxo de caixa, do fluxo aos indicadores, dos indicadores à comparação. O motor de cálculo é o mesmo da biblioteca Python <a href="https://github.com/Jaimenms/greenseer" target="_blank" rel="noopener">greenseer</a>, validado contra as notas do curso e uma resolução de referência do caso Gama.</p></div>
+
+  <h2>1. Do DRE ao fluxo de caixa global</h2>
+  <pre>Receitas
+(−) Custos e despesas desembolsáveis
+(=) EBITDA
+(−) Depreciação
+(=) Lucro operacional (EBIT)
+(−) IR = EBIT × alíquota
+(=) NOPAT
+(+) Depreciação
+(=) Fluxo de caixa operacional
+(−) Investimento
+(∓) Capital de giro        (investido no período anterior, recuperado ao fim)
+(+) Valor residual         (líquido de IR sobre o ganho em relação ao valor contábil)
+(=) Fluxo de caixa global (FCG)</pre>
+  <p>Prejuízo operacional gera IR negativo (benefício fiscal imediato), a hipótese usual para projetos marginais de uma empresa lucrativa; a opção "sem compensação" zera o IR nesses anos.</p>
+  <h3>Depreciação e valor contábil</h3>
+  <p>Linear na vida útil (padrão), linear em outro prazo, valor anual informado ou nenhuma. O valor contábil ao fim de cada ano é o investimento menos a depreciação acumulada; ele é a base do ganho tributável na venda do ativo.</p>
+  <h3>Valor residual</h3>
+  <ul>
+    <li><b>Valor de mercado</b>: entra no último ano líquido de IR: <code>VR − alíquota × (VR − valor contábil)</code>. Se o valor de mercado for menor que o contábil, a perda gera benefício fiscal.</li>
+    <li><b>Perpetuidade</b>: valor da operação em marcha, <code>NOPAT do último ano ÷ (TMA − g)</code>, convenção para instalações que continuam operando.</li>
+    <li><b>Contábil</b>: o valor contábil remanescente, sem tributação.</li>
+  </ul>
+
+  <h2>2. Indicadores</h2>
+  <table class="data"><thead><tr><th>Indicador</th><th>Cálculo</th><th>Critério</th></tr></thead><tbody>
+    <tr><td>VPL</td><td>Σ FCG<sub>t</sub> / (1+TMA)<sup>t</sup>, incluindo o investimento em t = 0</td><td>aceita se &gt; 0; maior é melhor</td></tr>
+    <tr><td>TIR</td><td>taxa que zera o VPL; a ferramenta encontra <b>todas</b> as raízes entre −90% e 1000%</td><td>aceita se &gt; TMA (fluxos convencionais)</td></tr>
+    <tr><td>TIRM</td><td>entradas capitalizadas à taxa de reinvestimento até o fim; saídas descontadas a t = 0; (VF/VP)<sup>1/n</sup> − 1</td><td>corrige a hipótese de reinvestimento à própria TIR</td></tr>
+    <tr><td>Payback simples e ajustado</td><td>ano em que o acumulado (descontado, no ajustado) fica ≥ 0, com interpolação linear</td><td>menor é melhor; não mede valor</td></tr>
+    <tr><td>IBC</td><td>VA das entradas ÷ VA das saídas</td><td>aceita se &gt; 1; valor por $ investido</td></tr>
+    <tr><td>RAU</td><td>VPL × (A/P, TMA, n) = equivalente anual uniforme do fluxo − equivalente anual do investimento</td><td>compara vidas diferentes sob repetição</td></tr>
+    <tr><td>ROIA</td><td>IBC<sup>1/n</sup> − 1</td><td>retorno adicional por ano, além da TMA</td></tr>
+  </tbody></table>
+
+  <h2>3. Vidas úteis diferentes</h2>
+  <p>Comparar o VPL de um projeto de 5 anos com o de um projeto de 7 anos ignora o que acontece nos dois anos de diferença. Há duas hipóteses:</p>
+  <ul>
+    <li><b>Repetição (empilhar até o MMC)</b>: cada projeto é repetido até o mínimo múltiplo comum das vidas (5 e 7 → 35 anos). No ano em que um ciclo termina e o outro começa, a última entrada e o novo investimento coexistem. O <b>RAU</b> é invariante ao empilhamento e, por isso, é o atalho correto: ordenar por RAU equivale a ordenar pelo VPL dos fluxos empilhados.</li>
+    <li><b>Sem repetição (estender)</b>: o projeto mais curto é completado com zeros; é a hipótese implícita do VPL simples.</li>
+  </ul>
+
+  <h2>4. Análise marginal e taxa de Fisher</h2>
+  <p>Para dois projetos mutuamente excludentes, o que importa é o fluxo <b>desafiante − defensor</b> (o de maior investimento menos o de menor). Se o VPL desse fluxo à TMA é positivo, o investimento adicional se paga e o desafiante vence. A <b>taxa de Fisher</b> é a TIR do fluxo marginal: a taxa em que os VPL dos dois projetos se igualam.</p>
+  <p>Dois cuidados que a ferramenta sinaliza:</p>
+  <ul>
+    <li>Fluxos marginais de projetos empilhados trocam de sinal várias vezes e podem ter <b>mais de uma TIR</b>. Nesse caso "TIR marginal &gt; TMA" não é critério: o VPL marginal pode ser positivo apenas entre duas raízes. A decisão usa sempre o sinal do VPL marginal à TMA.</li>
+    <li>Projetos com o <b>mesmo investimento</b> não têm investimento marginal; compare os VPL diretamente.</li>
+  </ul>
+  <p>A <b>seleção incremental</b> ordena os projetos por investimento e confronta cada desafiante com o defensor corrente; o sobrevivente é o campeão entre projetos excludentes.</p>
+
+  <h2>5. Carteiras</h2>
+  <p>Para projetos independentes, o VPL de uma carteira é a soma dos VPL. A ferramenta enumera todas as combinações (ou apenas as de <i>k</i> projetos, dentro de um orçamento) e calcula VPL, soma dos RAU, TIR, TIRM, IBC e payback do fluxo agregado.</p>
+
+  <h2>6. Modelo de dados (JSON exportado)</h2>
+  <pre>{
+  "nome": "Empresa Gama",
+  "globais": { "tma": 0.18, "aliquotaIR": 0.20, "taxaReinvestimento": null, "metodoHorizonte": "mmc", "k": 2, "orcamento": null },
+  "projetos": [{
+    "nome": "P3", "vida": 7, "investimento": 225000, "aliquotaIR": null,
+    "receitas": [{ "nome": "Vendas", "spec": { "modo": "produto", "fatores": [
+        { "modo": "crescimento", "base": 60000, "taxa": 0.10, "periodos": 5 }, { "modo": "constante", "valor": 6 } ] } }],
+    "custos": [{ "nome": "CPV", "spec": { "modo": "percentual", "pct": { "modo": "tabela", "valores": [0.67, 0.63, 0.63, 0.61, 0.60, 0.58, 0.58] }, "de": "receita" } }],
+    "depreciacao": { "modo": "explicita", "valorAnual": 30000 },
+    "valorResidual": { "modo": "mercado", "valor": 42000, "tributar": true },
+    "capitalDeGiro": { "modo": "nenhum" }
+  }]
+}</pre>
+  <p>Modos de série: <code>constante</code>, <code>crescimento</code> (base, taxa, períodos), <code>variacoes</code> (base e variações percentuais por ano), <code>tabela</code> (valores por ano), <code>percentual</code> (de outra linha, normalmente a receita), <code>produto</code> (quantidade × preço). O mesmo JSON pode ser lido pela biblioteca Python.</p>
+
+  <h2>Referências</h2>
+  <p>Notas de aula de Análise de Investimentos e Análise de Risco (Prof. Geraldo Sardinha Pinto Filho, FDC); Kelleher &amp; MacCormack, <i>Cuidado com a TIR</i>, HSM Management 48 (2005); estudo de caso da Empresa Gama.</p>
+</div></section>
+<footer class="site" id="site-footer"></footer>
+<script type="module">
+  import { chrome } from './assets/js/ui/chrome.js';
+  chrome({ active: 'metodologia' });
+</script>
+</body>
+</html>

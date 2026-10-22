@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>greenseer — Comparação de projetos de investimento</title>
+  <meta name="description" content="Ferramenta interativa para comparar projetos de investimento: fluxo de caixa a partir das premissas, VPL, TIR, TIRM, RAU, payback, IBC, análise marginal entre todos os pares e carteiras. Roda no navegador, sem servidor.">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232a78d6'/%3E%3Cpath d='M8 20l5-6 5 4 6-9' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+<header class="topbar" id="topbar"></header>
+
+<section class="hero">
+  <div class="container">
+    <span class="eyebrow">● Análise de investimentos · VPL · TIR · TIRM · RAU · análise marginal</span>
+    <h1>Compare projetos de investimento <span class="grad">com todos os métodos</span></h1>
+    <p class="lead">Descreva cada projeto pelas suas premissas (volumes, preços, custos, depreciação, valor residual) e a ferramenta monta o fluxo de caixa, calcula todos os indicadores, equaliza vidas úteis diferentes, faz a análise marginal entre todos os pares e ranqueia as carteiras possíveis. Tudo roda no seu navegador; nada é enviado a servidores.</p>
+    <div class="hero-stats" id="hero-stats"></div>
+    <div class="cta">
+      <button class="btn primary" id="btn-exemplo">Carregar exemplo (Empresa Gama)</button>
+      <button class="btn" id="btn-novo">Novo caso em branco</button>
+      <button class="btn" id="btn-importar">Importar JSON</button>
+      <button class="btn" id="btn-exportar">Exportar JSON</button>
+      <input type="file" id="file-importar" accept="application/json,.json" class="hidden">
+    </div>
+  </div>
+</section>
+
+<section class="block" id="premissas"><div class="container">
+  <div class="section-head"><span class="eyebrow">1 · Premissas</span><h2>Caso e premissas globais</h2><p>A taxa mínima de atratividade (TMA) desconta os fluxos; a alíquota de IR vale para todos os projetos, salvo quando o projeto define a sua própria.</p></div>
+  <div class="card">
+    <div class="form-grid" id="form-globais">
+      <div class="field" style="grid-column: span 2"><label for="g-nome">Nome do caso</label><input type="text" id="g-nome" data-g="nome"></div>
+      <div class="field"><label for="g-tma">TMA (% a.a.)</label><div class="suffix"><input type="number" step="0.1" id="g-tma" data-g="tma" data-pct><span>%</span></div><span class="hint">remuneração exigida pelos acionistas</span></div>
+      <div class="field"><label for="g-ir">Alíquota de IR (%)</label><div class="suffix"><input type="number" step="0.1" id="g-ir" data-g="aliquotaIR" data-pct><span>%</span></div></div>
+      <div class="field"><label for="g-reinv">Taxa de reinvestimento da TIRM (%)</label><div class="suffix"><input type="number" step="0.1" id="g-reinv" data-g="taxaReinvestimento" data-pct placeholder="= TMA"><span>%</span></div><span class="hint">em branco usa a TMA</span></div>
+      <div class="field"><label>Vidas diferentes</label><div class="seg" data-g="metodoHorizonte"><button data-value="mmc">Empilhar até o MMC</button><button data-value="estender">Sem repetição</button></div><span class="hint">como comparar projetos de vidas diferentes</span></div>
+      <div class="field"><label for="g-k">Projetos por carteira</label><input type="number" min="1" step="1" id="g-k" data-g="k" placeholder="qualquer"><span class="hint">em branco: todas as combinações</span></div>
+      <div class="field"><label for="g-orc">Orçamento máximo</label><input type="number" step="1000" id="g-orc" data-g="orcamento" placeholder="sem limite"></div>
+    </div>
+    <p class="small muted" id="caso-desc" style="margin:12px 0 0"></p>
+  </div>
+</div></section>
+
+<section class="block" id="projetos"><div class="container">
+  <div class="section-head"><span class="eyebrow">2 · Projetos</span><h2>Os projetos a comparar</h2><p>Cada projeto é descrito pelas suas premissas. Receitas e custos aceitam valor constante, crescimento, variações por ano, tabela ano a ano, percentual da receita ou quantidade × preço.</p></div>
+  <div class="projetos" id="lista-projetos"></div>
+</div></section>
+
+<section class="block" id="resultados"><div class="container">
+  <div class="section-head"><span class="eyebrow">3 · Resultados</span><h2>Todos os métodos de avaliação</h2><p>Os critérios nem sempre concordam: o VPL mede riqueza criada, o RAU anualiza para comparar vidas diferentes, a TIR e o payback favorecem projetos menores e mais rápidos, o IBC mede valor por unidade investida.</p></div>
+  <div class="grid">
+    <article class="card col-12"><header><div class="titles"><h3>Indicadores e posição em cada critério</h3><p class="sub">Clique nos cabeçalhos para ordenar · ★ = melhor no critério</p></div></header><div class="table-view" id="tab-indicadores"></div><footer class="note">TIRM com reinvestimento à taxa informada nas premissas (padrão: TMA). RAU = VPL × fator de recuperação de capital na vida do projeto. Paybacks com interpolação linear no ano de recuperação.</footer></article>
+    <article class="card col-12"><header><div class="titles"><h3>Painel de indicadores</h3><p class="sub">Um painel por critério, com a referência (TMA ou 1,0) onde se aplica</p></div></header><div class="panel" id="painel-indicadores"></div></article>
+    <article class="card col-6"><header><div class="titles"><h3>Perfil do VPL e taxas de Fisher</h3><p class="sub">VPL de cada projeto em função da taxa de desconto; ◆ = interseções (onde a preferência se inverte)</p></div><div class="actions"><button class="icon-btn btn-table" data-for="perfil">Tabela</button></div></header><div class="chart tall" id="ch-perfil"></div><div class="table-view hidden" id="tb-perfil"></div><footer class="note">Arraste no gráfico para dar zoom. A TIR de cada projeto é o cruzamento com o eixo; a TMA é a linha vertical.</footer></article>
+    <article class="card col-6"><header><div class="titles"><h3>Diagrama de fluxo de caixa</h3><p class="sub">Setas para cima = entradas; para baixo = saídas; setas empilhadas = componentes do mesmo ano</p></div><div class="actions"><select id="sel-projeto-fluxo"></select></div></header><div class="chart tall" id="ch-fluxo"></div><footer class="note" id="nota-fluxo"></footer></article>
+    <article class="card col-12"><header><div class="titles"><h3>Demonstrativo: do DRE ao fluxo de caixa global</h3><p class="sub" id="dre-sub"></p></div></header><div class="table-view" id="tab-dre"></div></article>
+  </div>
+</div></section>
+
+<section class="block" id="marginal"><div class="container">
+  <div class="section-head"><span class="eyebrow">4 · Análise marginal</span><h2>Fluxo de caixa marginal entre todos os pares</h2><p>Para cada par, o projeto de menor investimento é o <b>defensor</b> e o de maior é o <b>desafiante</b>. Com vidas diferentes os fluxos são empilhados até o mínimo múltiplo comum (ou estendidos, sem repetição). O desafiante vence quando o VPL marginal à TMA é positivo.</p></div>
+  <div class="grid">
+    <article class="card col-6"><header><div class="titles"><h3>Matriz de decisão</h3><p class="sub">Desafiante (linha) × defensor (coluna): azul = desafiante vence; vermelho = defensor vence</p></div></header><div class="chart tall" id="ch-matriz"></div><footer class="note">Clique numa célula para abrir o par. * = fluxo marginal com mais de uma TIR; — = investimentos iguais (compare os VPL diretamente).</footer></article>
+    <article class="card col-6"><header><div class="titles"><h3>VPL do fluxo marginal em função da taxa</h3><p class="sub" id="par-perfil-sub">As raízes são as TIR marginais (taxas de Fisher); o sinal à TMA decide</p></div></header><div class="chart tall" id="ch-par-perfil"></div><footer class="note" id="nota-par"></footer></article>
+    <article class="card col-12"><header><div class="titles"><h3 id="par-titulo">Par selecionado</h3><p class="sub">Fluxos empilhados até o horizonte comum e o fluxo marginal (desafiante − defensor); nos anos de reinvestimento aparecem a última entrada do ciclo e o novo investimento</p></div></header><div class="chart xtall" id="ch-par"></div></article>
+    <article class="card col-12"><header><div class="titles"><h3>Todos os pares</h3><p class="sub">Clique numa linha para ver o par</p></div></header><div class="table-view" id="tab-pares"></div><footer class="note" id="nota-campeao"></footer></article>
+  </div>
+</div></section>
+
+<section class="block" id="carteiras"><div class="container">
+  <div class="section-head"><span class="eyebrow">5 · Carteiras</span><h2>Combinações de projetos independentes</h2><p>O VPL de uma carteira é a soma dos VPL dos projetos. A soma dos RAU supõe repetição dos projetos ao fim das vidas. Ajuste o número de projetos e o orçamento nas premissas.</p></div>
+  <div class="grid">
+    <article class="card col-12"><header><div class="titles"><h3>Ranking das carteiras</h3><p class="sub" id="cart-sub"></p></div></header><div class="table-view" id="tab-carteiras"></div></article>
+    <article class="card col-12"><header><div class="titles"><h3>VPL e soma dos RAU por carteira</h3><p class="sub">Em $ — o VPL é total; o RAU é por ano</p></div></header><div class="chart tall" id="ch-carteiras"></div></article>
+  </div>
+</div></section>
+
+<dialog class="editor" id="editor"></dialog>
+<div class="toast" id="toast"></div>
+<footer class="site" id="site-footer"></footer>
+<script type="module" src="assets/js/ui/app.js"></script>
+</body>
+</html>
